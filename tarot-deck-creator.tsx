@@ -1,11 +1,17 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button, ButtonProps } from '@/components/ui/button';
+import { Input, InputProps } from '@/components/ui/input';
+import { Alert, AlertDescription, AlertProps } from '@/components/ui/alert';
 import { ArrowRight, ArrowLeft, CheckCircle, XCircle, Loader } from 'lucide-react';
+import { tarotDeck, TarotCard } from './tarot-data';
 
-const useLocalStorage = (key, initialValue) => {
+interface ApprovedCard extends TarotCard {
+  imageUrl: string;
+  approvedAt: string;
+}
+
+const useLocalStorage = <T,>(key: string, initialValue: T): [T, (value: T) => void] => {
   const [storedValue, setStoredValue] = useState(() => {
     try {
       const item = window.localStorage.getItem(key);
@@ -31,18 +37,54 @@ const TarotDeckCreator = () => {
   const [currentCard, setCurrentCard] = useState(0);
   const [approvedCards, setApprovedCards] = useLocalStorage('approvedCards', []);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [error, setError] = useState(null);
-  const [generatedImage, setGeneratedImage] = useState(null);
-  
-  const tarotDeck = [
-    { name: "The Fool", number: "0", description: "A cosmic traveler stepping into the void" },
-    { name: "The Magician", number: "I", description: "A celestial being channeling universal energy" }
-    // Additional cards would be defined here
-  ];
+  const [error, setError] = useState<string | null>(null);
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [userPrompt, setUserPrompt] = useState<string>('');
 
-  const generatePrompt = useCallback((cardInfo) => {
-    return `Create a mystical tarot card in blacklight neon style with dark background. ${cardInfo.name} showing ${cardInfo.description} in electric blues, magentas, and cosmic purples. Include ornate glowing frame with mystical symbols. Style: Highly detailed digital art with luminous effects, similar to synthwave aesthetic.`;
-  }, []);
+  const generatePrompt = useCallback((cardInfo: TarotCard) => {
+    const basePrompt = `Create a mystical tarot card in blacklight neon style with dark background. ${cardInfo.name} showing ${cardInfo.description} in electric blues, magentas, and cosmic purples. Include ornate glowing frame with mystical symbols. Style: Highly detailed digital art with luminous effects, similar to synthwave aesthetic.`;
+    return userPrompt ? `${basePrompt} Additional instructions: ${userPrompt}` : basePrompt;
+  }, [userPrompt]);
+
+  return (
+    <Card className="w-full max-w-4xl mx-auto">
+      <CardHeader>
+        <CardTitle className="text-2xl">{tarotDeck[currentCard].name}</CardTitle>
+        <div className="text-sm text-gray-500">
+          Card {currentCard + 1} of {tarotDeck.length} | {approvedCards.length} approved
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        
+        <div className="flex flex-col space-y-4">
+          <Input
+            value={userPrompt}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUserPrompt(e.target.value)}
+            placeholder="Enter additional image generation instructions..."
+          />
+          
+          <div className="flex justify-center p-4 bg-gray-100 rounded-lg">
+            {isGenerating ? (
+              <div className="flex items-center justify-center h-96 w-64">
+                <Loader className="animate-spin w-8 h-8" />
+              </div>
+            ) : generatedImage ? (
+              <img
+                src={generatedImage}
+                alt={tarotDeck[currentCard].name}
+                className="rounded shadow-lg max-h-96 object-contain"
+              />
+            ) : (
+              <div className="flex items-center justify-center h-96 w-64 bg-gray-200 rounded">
+                Click Generate to create card
+              </div>
+            )}
+          </div>
 
   const handleGenerateImage = async () => {
     setIsGenerating(true);
